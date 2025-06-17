@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Crew Health KPI Dashboard</title>
+  <!-- Load Chart.js from CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 0; display:flex; flex-direction:column; }
+    header { padding:1rem; background:#004080; color:white; text-align:center;}
+    .file-input { padding:1rem; background:#f0f0f0;}
+    .file-input input, .file-input button { margin-right:0.5rem; padding:0.5rem;}
+    main { display:grid; gap:1rem; padding:1rem; grid-template-columns:1fr; }
+    @media(min-width:768px){ main { grid-template-columns:repeat(2,1fr); } }
+    .card { background:#fff; border-radius:8px; box-shadow:0 2px 8px rgba(0,0,0,0.1); padding:1rem; }
+    canvas { max-width:100%; height:auto;}
+    .table-container { position:relative; }
+    #searchInput { margin-bottom:0.5rem; width:100%; padding:0.5rem; }
+    table { width:100%; border-collapse:collapse;}
+    th,td { border:1px solid #ddd; padding:0.5rem; text-align:left;}
+    th { background:#f5f5f5; cursor:pointer; }
+    tr.error { background:#ffe5e5; }
+    td.error { background:#ffe5e5; }
+  </style>
+</head>
+<body>
+  <header><h1>Crew Health KPI Dashboard</h1></header>
+  <div class="file-input card">
+    <input type="file" id="fileInput" multiple accept=".xml">
+    <button id="loadButton">Load Reports</button>
+  </div>
+  <main id="dashboard">
+    <div class="card"><h2>BMI Distribution</h2><canvas id="bmiChart"></canvas></div>
+    <div class="card"><h2>Blood Pressure Categories</h2><canvas id="bpChart"></canvas></div>
+    <div class="card"><h2>Average Pulse & Temperature</h2><canvas id="avgChart"></canvas></div>
+    <div class="card table-container"><h2>Detailed Data</h2>
+      <input type="text" id="searchInput" placeholder="Search...">
+      <table id="dataTable">
+        <thead><tr>
+          <th data-key="name">Name</th><th data-key="rank">Rank</th><th data-key="weight">Weight</th>
+          <th data-key="bmi">BMI</th><th data-key="bp">BP</th><th data-key="pulse">Pulse</th><th data-key="temp">Temp</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </main>
+  <script>
+    let bmiChart, bpChart, avgChart;
+    document.getElementById('loadButton').addEventListener('click', async () => {
+      const files = document.getElementById('fileInput').files;
+      if (!files.length) return alert('Select at least one XML file.');
+      const parsePromises = Array.from(files).map((file, index) => new Promise(resolve => {
+        const reader = new FileReader();
+        reader.onload = e => {
+          const xml = new DOMParser().parseFromString(e.target.result, 'application/xml');
+          const crewNodes = xml.querySelectorAll('Crew');
+          const parsed = [...crewNodes].map(node => ({
+            name: node.querySelector('Name')?.textContent.trim() || '',
+            rank: node.querySelector('Rank')?.textContent.trim() || '',
+            weight: parseFloat(node.querySelector('Weight')?.textContent) || 0,
+            bmi: parseFloat(node.querySelector('BMI')?.textContent) || 0,
+            bp: node.querySelector('Meaning')?.textContent.trim() || '',
+            pulse: parseInt(node.querySelector('Pulse')?.textContent) || 0,
+            temp: parseFloat(node.querySelector('Temp')?.textContent) || 0,
+            fileIndex: index
+          }));
+          resolve(parsed);
+        };
+        reader.readAsText(file);
+      }));
+      const results = await Promise.all(parsePromises);
+      const data = results.flat();
+      renderDashboard(data);
+    });
+
+    function detectOmissions(data) {
+      const omissions = new Set();
+      data.forEach((c, i) => {
+        if (!c.name || !c.rank) omissions.add(i);
+      });
+      return omissions;
+    }
+
+    function detectWeightAnomalies(data) {
+      const anomalies = new Set();
+      const history = {};
+      data.sort((a,b)=>a.name.localeCompare(b.name)||a.fileIndex-b.fileIndex);
+      data.forEach((c, i) => {
+        if (!history[c.name]) history[c.name] = [];
+        history[c.name].push({weight: c.weight, index: i});
+      });
+      Object.values(history).forEach(arr => {
+        for (let j=1; j<arr.length; j++) {
+          if (Math.abs(arr[j].weight - arr[j-1].weight) > 5) {
+            anomalies.add(arr[j].index);
+            anomalies.add(arr[j-1].index);
+          }
+        }
+      });
+      return anomalies;
+    }
+
+    function renderDashboard(data) {
+      // Destroy old charts if they exist
+      [bmiChart, bpChart, avgChart].forEach(c => c && c.destroy());
+      const tbody = document.querySelector('#dataTable tbody');
+      tbody.innerHTML = '';
+
+      const omissions = detectOmissions(data);
+      const anomalies = detectWeightAnomalies(data);
+
+      // KPI calculations
+      const bmiCats = {Normal:0, Overweight:0, Obese:0};
+      const bpCats = {};
+      data.forEach(c => {
+        if (c.bmi < 25) bmiCats.Normal++;
+        else if (c.bmi < 30) bmiCats.Overweight++;
+        else bmiCats.Obese++;
+        bpCats[c.bp] = (bpCats[c.bp] || 0) + 1;
+      });
+      const avgPulse = data.reduce((sum,c) => sum + c.pulse, 0) / data.length;
+      const avgTemp = data.reduce((sum,c) => sum + c.temp, 0) / data.length;
+
+      // Populate table with highlights for errors/anomalies
+      data.forEach((c, i) => {
+        const tr = document.createElement('tr');
+        if (omissions.has(i) || anomalies.has(i)) tr.classList.add('error');
+        tr.innerHTML = `
+          <td${!c.name?' class="error"':''}>${c.name}</td>
+          <td${!c.rank?' class="error"':''}>${c.rank}</td>
+          <td${anomalies.has(i)?' class="error"':''}>${c.weight.toFixed(1)}</td>
+          <td>${c.bmi.toFixed(2)}</td>
+          <td>${c.bp}</td>
+          <td>${c.pulse}</td>
+          <td>${c.temp.toFixed(1)}</td>`;
+        tbody.appendChild(tr);
+      });
+
+      // Search functionality
+      document.getElementById('searchInput').oninput = e => {
+        const val = e.target.value.toLowerCase();
+        Array.from(tbody.rows).forEach(r => {
+          r.style.display = r.innerText.toLowerCase().includes(val) ? '' : 'none';
+        });
+      };
+
+      // Render charts
+      bmiChart = new Chart(document.getElementById('bmiChart'), {
+        type: 'pie',
+        data: { labels: Object.keys(bmiCats), datasets: [{ data: Object.values(bmiCats) }] }
+      });
+      bpChart = new Chart(document.getElementById('bpChart'), {
+        type: 'bar',
+        data: { labels: Object.keys(bpCats), datasets: [{ data: Object.values(bpCats) }] }
+      });
+      avgChart = new Chart(document.getElementById('avgChart'), {
+        type: 'bar',
+        data: {
+          labels: ['Average Pulse', 'Average Temp'],
+          datasets: [{ data: [avgPulse, avgTemp] }]
+        }
+      });
+    }
+  </script>
+</body>
+</html>
