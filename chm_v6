@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Crew Health Monthly (CHM) Report</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root{
+  --border:#d0d7de;
+  --bg:#fefefe;
+  --header:#dde9ff;
+  --accent:#0d6efd;
+  --font:'Segoe UI',sans-serif;
+  --green:#d4edda;
+  --orange:#ffe8cc;
+  --red:#f8d7da;
+  --yellow:#fff3cd;
+  --blue:#e2eafc;
+}
+*{box-sizing:border-box;font-family:var(--font);}
+body{
+  margin:0;
+  padding:1rem;
+  background:var(--bg);
+  color:#222;
+  display:flex;
+  flex-direction:column;
+  min-height:100vh;
+}
+h1{text-align:center;margin:0;font-size:1.6rem;}
+h2.company{text-align:center;margin:0 0 1rem;font-size:1rem;font-weight:500;color:#3468da;}
+#timestamp{text-align:left;margin-bottom:.5rem;font-style:italic;font-size: smaller;}
+#metaWrap{
+  display:flex;
+  justify-content:left;
+  gap:1rem;
+  margin-bottom:1rem;
+  flex-wrap:wrap;
+}
+label{font-weight:600;}
+input.meta{
+  border:1px solid var(--border);
+  border-radius:4px;
+  padding:.3rem .5rem;
+  min-width:200px;
+}
+table{
+  border-collapse:collapse;
+  margin:0 auto;
+  max-width:100%;
+  width: 100%; /* Make table take full width */
+}
+td,th{
+  border:1px solid var(--border);
+  padding:.25rem .15rem; /* Reduced padding for more compact look */
+  min-width:unset; /* Allow columns to shrink more */
+  text-align: center; /* Center align text in cells */
+}
+th{background:var(--header);}
+input.cell{
+    border:none;
+    width:100%;
+    padding:.15rem; /* Reduced padding for inputs */
+    text-align:center;
+    background:transparent;
+  }
+input[readonly]{background:#f8f9fa;color:#555;font-weight:bold;}
+#controls{display:flex;justify-content:center;gap:1rem;margin:1rem auto;}
+.btn {padding:.6rem 1.2rem;border:none;border-radius:6px;cursor:pointer;font-size:1rem;}
+#exportBtn, #savePdfBtn, #printBtn {
+  display:block;
+  margin:1.2rem auto;
+  padding:.6rem 1.2rem;
+  font-size:1rem;
+  background:var(--accent);
+  color:#fff;
+  border:none;
+  border-radius:6px;
+  cursor:pointer;
+}
+#exportBtn:hover, #savePdfBtn:hover, #printBtn:hover{opacity:.9;} 
+
+input.cell::-webkit-outer-spin-button,
+input.cell::-webkit-inner-spin-button{
+  -webkit-appearance:none;
+  margin:0;
+}
+input.cell[type=number]{appearance:textfield;}
+.tooltip{position:relative;cursor:help;}
+.tooltip::after{
+  content:attr(data-tip);
+  position:absolute;
+  left:50%;
+  top:120%;
+  transform:translateX(-50%);
+  background:#333;
+  color:#fff;
+  padding:4px 8px;
+  font-size:.75rem;
+  border-radius:4px;
+  white-space:nowrap;
+  opacity:0;
+  pointer-events:none;
+  transition:.15s;
+  z-index:10;
+}
+.tooltip:hover::after{opacity:1;}
+input.cell:focus{outline:2px solid var(--accent);}
+/* Soft pastel colors based on Material UI light shades */
+td.status-normal    { background: #73f87e; }  /* Pastel green */
+td.status-underweight { background: #fcf050; } /* Pastel blue */
+td.status-overweight  { background: #fc4c4c; } /* Pastel orange */
+td.status-obese       { background: #fc3333; } /* Pastel red */
+
+td.bp-normal      { background: #73f87e; }  /* Pastel green */
+td.bp-elevated    { background: #fcf050; }  /* Pastel yellow */
+td.bp-high1       { background: #fc4c4c; }  /* Pastel amber/orange */
+td.bp-high2       { background: #fc3333; }  /* Pastel red */
+
+footer{margin-top:auto;display:flex;justify-content:space-between;font-size:.8rem;color:#666;}
+
+/* Adjusted column widths for a more compact table */
+th:nth-child(1), td:nth-child(1) { width: 40px; min-width: 40px; } /* No. */
+th:nth-child(2), td:nth-child(2) { width: 60px; min-width: 60px; } /* Rank */
+th:nth-child(3), td:nth-child(3) { width: 120px; min-width: 120px; } /* Name */
+th:nth-child(4), td:nth-child(4) { width: 50px; min-width: 50px; } /* Height */
+th:nth-child(5), td:nth-child(5) { width: 55px; min-width: 55px; } /* Weight */
+th:nth-child(6), td:nth-child(6) { width: 55px; min-width: 55px; } /* Systolic */
+th:nth-child(7), td:nth-child(7) { width: 55px; min-width: 55px; } /* Diastolic */
+th:nth-child(8), td:nth-child(8) { width: 80px; min-width: 80px; } /* BP Meaning */
+th:nth-child(9), td:nth-child(9) { width: 50px; min-width: 50px; } /* Pulse */
+th:nth-child(10), td:nth-child(10) { width: 60px; min-width: 60px; } /* Temp */
+th:nth-child(11), td:nth-child(11) { width: 45px; min-width: 45px; } /* BMI */
+th:nth-child(12), td:nth-child(12) { width: 90px; min-width: 90px; } /* Interpretation */
+th:nth-child(13), td:nth-child(13) { width: 70px; min-width: 70px; } /* Excess Weight */
+th:nth-child(14), td:nth-child(14) { width: 120px; min-width: 120px; } /* Medication Taken */
+
+
+/* Print specific styles */
+@media print, screen and (prefers-color-scheme: export) {
+  /* Hide buttons and adjust layout */
+  #controls {
+    display: none !important;
+  }
+
+    footer {
+    display: flex !important;
+    justify-content: space-between;
+    font-size: 0.7rem;
+    color: #555;
+    margin-top: 0.5rem;
+  }
+
+  /* Adjust body margins for better fit on paper */
+  body {
+    margin: 0;
+    padding: 0.4cm; /* Reduced padding */
+    font-size: 0.72em;    
+    display: block; /* Ensure it doesn't try to flex in print */
+  }
+
+  /* Center headings */
+  h1, h2.company {
+    text-align: center;
+    margin-bottom: 0.5rem; /* Reduce space below headings */
+  }
+
+  /* Adjust timestamp and meta info for print */
+  #timestamp, #metaWrap {
+    text-align: center;
+    margin-bottom: 0.5rem;
+    font-size: 0.85em; /* Slightly smaller font */
+  }
+
+  /* Table specific adjustments */
+  table {
+    width: 100%; /* Ensure table takes full width */
+    font-size: 0.72em; /* Smaller font size for table content */
+  }
+
+  td, th {
+    padding: 0.1rem; /* Reduce cell padding */
+    min-width: unset; /* Remove min-width to allow more compression */
+    /* Remove fixed widths that might cause overflow in print */
+    width: auto !important;
+    max-width: unset !important;
+  }
+
+  /* Override fixed column widths */
+  th, td {
+    width: auto !important;
+  }
+
+  /* Prevent page break inside rows */
+  tr {
+    page-break-inside: avoid;
+  }
+
+  /* Optional: Force page size and layout for html2pdf */
+  @page {
+    size: A4 landscape;
+    margin: 0.4in;
+  }
+  /* same when we toggle “export-mode” in JS */
+body.export-mode #reportPage{
+  width:calc(100% / .68);
+  transform:scale(.68);
+  transform-origin:top left;
+}
+  /* Adjust specific column widths for print if necessary,
+     making them more flexible or smaller.
+     The `!important` is used to override existing inline or earlier rules.
+  */
+  th:nth-child(1), td:nth-child(1) { width: 40px !important; min-width: 40px !important; } /* No. */
+  th:nth-child(2), td:nth-child(2) { width: 60px !important; min-width: 60px !important; } /* Rank */
+  th:nth-child(3), td:nth-child(3) { width: 150px !important; min-width: 150px !important; } /* Name */
+  th:nth-child(4), td:nth-child(4) { width: 55px !important; min-width: 55px !important; } /* Height */
+  th:nth-child(5), td:nth-child(5) { width: 55px !important; min-width: 55px !important; } /* Weight */
+  th:nth-child(6), td:nth-child(6) { width: 50px !important; min-width: 50px !important; } /* Systolic */
+  th:nth-child(7), td:nth-child(7) { width: 50px !important; min-width: 50px !important; } /* Diastolic */
+  th:nth-child(8), td:nth-child(8) { width: 80px !important; min-width: 80px !important; } /* BP Meaning */
+  th:nth-child(9), td:nth-child(9) { width: 45px !important; min-width: 45px !important; } /* Pulse */
+  th:nth-child(10), td:nth-child(10) { width: 50px !important; min-width: 50px !important; } /* Temp */
+  th:nth-child(11), td:nth-child(11) { width: 40px !important; min-width: 40px !important; } /* BMI */
+  th:nth-child(12), td:nth-child(12) { width: 90px !important; min-width: 90px !important; } /* Interpretation */
+  th:nth-child(13), td:nth-child(13) { width: 60px !important; min-width: 60px !important; } /* Excess Weight */
+  th:nth-child(14), td:nth-child(14) { width: 150px !important; min-width: 150px !important; } /* Medication Taken */
+
+  input.cell {
+    padding: 0.1rem; /* Even smaller padding for inputs in print */
+  }
+}
+body.export-mode #controls {
+  display: none !important;
+}
+body.export-mode footer {
+  display: flex !important;
+  justify-content: space-between;
+  font-size: 0.7rem;
+}
+
+</style>
+
+<style>
+  /* Temperature color classes */
+  td.temp-hypothermia { background: #e0f7fa; }
+  td.temp-cold        { background: #ffe8cc; }
+  td.temp-normal      { background: #d4edda; }
+  td.temp-lowfever    { background: #fff3cd; }
+  td.temp-fever       { background: #ffe8cc; }
+  td.temp-hyperpyrexia{ background: #f8d7da; }
+
+  /* Pulse color classes */
+  td.pulse-bradycardia { background: #ffe8cc; }
+  td.pulse-normal      { background: #d4edda; }
+  td.pulse-tachycardia { background: #f8d7da; }
+
+  #vessel {
+    border: 0.5px solid rgb(54, 54, 212);
+  }
+
+  #reportTable {
+    font-size: small;
+  }
+</style>
+
+</head>
+<body>
+  <div id="reportPage">
+<h1>Crew Health Monthly Report</h1>
+<h2 class="company">Cebu Ace‑Maritime International Inc.</h2>
+
+<div id="metaWrap">
+  <label for="vessel">Vessel Name:</label>
+  <input id="vessel" class="meta" type="text" placeholder="Enter vessel name" required>
+  <div id="timestamp"></div>
+</div>
+
+<table id="reportTable">
+  <thead>
+    <tr>
+      <th>No.</th>
+      <th>Rank</th>
+      <th>Name</th>
+      <th>Height (m)</th>
+      <th>Weight (kg)</th>
+      <th>Systolic</th>
+      <th>Diastolic</th>
+      <th class="tooltip" data-tip="Normal, Elevated, High BP 1, High BP 2">BP Meaning</th>
+      <th>Pulse</th>
+      <th>Temp (°C)</th>
+      <th class="tooltip" data-tip="Auto‑calculates">BMI</th>
+      <th class="tooltip" data-tip="Underweight, Normal, Overweight, Obese">Interpretation</th>
+      <th class="tooltip" data-tip="If BMI>24.9: weight - upper normal weight">Excess Weight (kg)</th>
+      <th class="tooltip" data-tip="Type 'No medication' if none taken">Medication Taken</th>
+    </tr>
+  </thead>
+  <tbody>
+    <!-- Row 1 -->
+    <tr>
+      <td><input class="cell number" data-r="1" data-c="0" type="number" value="1"  readonly></td>
+      <td><input class="cell text" data-r="1" data-c="1" type="text" value="" maxlength="5"></td>
+      <td><input class="cell text" data-r="1" data-c="2" type="text" value="" ></td>
+      <td><input class="cell number h" data-r="1" data-c="3" type="number" value="" step="0.01" min="0"></td>
+      <td><input class="cell number w" data-r="1" data-c="4" type="number" value="" step="0.1" min="0"></td>
+      <td><input class="cell number sys" data-r="1" data-c="5" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell number dia" data-r="1" data-c="6" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell text meaning" data-r="1" data-c="7" type="text" value=""  readonly></td>
+      <td><input class="cell number pulse" data-r="1" data-c="8" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell number temp" data-r="1" data-c="9" type="number" value="" step="0.1" min="0"></td>
+      <td><input class="cell number bmi" data-r="1" data-c="10" type="number" value="" step="0.1" min="0" readonly></td>
+      <td><input class="cell text bmiinterp" data-r="1" data-c="11" type="text" value=""  readonly></td>
+      <td><input class="cell number excess" data-r="1" data-c="12" type="number" value=""  readonly></td>
+      <td><input class="cell text meds" data-r="1" data-c="13" type="text" value="" ></td>
+    </tr>
+    <!-- Row 2 -->
+    <tr>
+      <td><input class="cell number" data-r="2" data-c="0" type="number" value="2"  readonly></td>
+      <td><input class="cell text" data-r="2" data-c="1" type="text" value="" maxlength="5"></td>
+      <td><input class="cell text" data-r="2" data-c="2" type="text" value="" ></td>
+      <td><input class="cell number h" data-r="2" data-c="3" type="number" value="" step="0.01" min="0"></td>
+      <td><input class="cell number w" data-r="2" data-c="4" type="number" value="" step="0.1" min="0"></td>
+      <td><input class="cell number sys" data-r="2" data-c="5" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell number dia" data-r="2" data-c="6" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell text meaning" data-r="2" data-c="7" type="text" value=""  readonly></td>
+      <td><input class="cell number pulse" data-r="2" data-c="8" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell number temp" data-r="2" data-c="9" type="number" value="" step="0.1" min="0"></td>
+      <td><input class="cell number bmi" data-r="2" data-c="10" type="number" value="" step="0.1" min="0" readonly></td>
+      <td><input class="cell text bmiinterp" data-r="2" data-c="11" type="text" value=""  readonly></td>
+      <td><input class="cell number excess" data-r="2" data-c="12" type="number" value=""  readonly></td>
+      <td><input class="cell text meds" data-r="2" data-c="13" type="text" value="" ></td>
+    </tr>
+    <!-- Row 3 -->
+    <tr>
+      <td><input class="cell number" data-r="3" data-c="0" type="number" value="3"  readonly></td>
+      <td><input class="cell text" data-r="3" data-c="1" type="text" value="" maxlength="5"></td>
+      <td><input class="cell text" data-r="3" data-c="2" type="text" value="" ></td>
+      <td><input class="cell number h" data-r="3" data-c="3" type="number" value="" step="0.01" min="0"></td>
+      <td><input class="cell number w" data-r="3" data-c="4" type="number" value="" step="0.1" min="0"></td>
+      <td><input class="cell number sys" data-r="3" data-c="5" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell number dia" data-r="3" data-c="6" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell text meaning" data-r="3" data-c="7" type="text" value=""  readonly></td>
+      <td><input class="cell number pulse" data-r="3" data-c="8" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell number temp" data-r="3" data-c="9" type="number" value="" step="0.1" min="0"></td>
+      <td><input class="cell number bmi" data-r="3" data-c="10" type="number" value="" step="0.1" min="0" readonly></td>
+      <td><input class="cell text bmiinterp" data-r="3" data-c="11" type="text" value=""  readonly></td>
+      <td><input class="cell number excess" data-r="3" data-c="12" type="number" value=""  readonly></td>
+      <td><input class="cell text meds" data-r="3" data-c="13" type="text" value="" ></td>
+    </tr>
+    <!-- Row 4 -->
+    <tr>
+      <td><input class="cell number" data-r="4" data-c="0" type="number" value="4"  readonly></td>
+      <td><input class="cell text" data-r="4" data-c="1" type="text" value="" maxlength="5"></td>
+      <td><input class="cell text" data-r="4" data-c="2" type="text" value="" ></td>
+      <td><input class="cell number h" data-r="4" data-c="3" type="number" value="" step="0.01" min="0"></td>
+      <td><input class="cell number w" data-r="4" data-c="4" type="number" value="" step="0.1" min="0"></td>
+      <td><input class="cell number sys" data-r="4" data-c="5" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell number dia" data-r="4" data-c="6" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell text meaning" data-r="4" data-c="7" type="text" value=""  readonly></td>
+      <td><input class="cell number pulse" data-r="4" data-c="8" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell number temp" data-r="4" data-c="9" type="number" value="" step="0.1" min="0"></td>
+      <td><input class="cell number bmi" data-r="4" data-c="10" type="number" value="" step="0.1" min="0" readonly></td>
+      <td><input class="cell text bmiinterp" data-r="4" data-c="11" type="text" value=""  readonly></td>
+      <td><input class="cell number excess" data-r="4" data-c="12" type="number" value=""  readonly></td>
+      <td><input class="cell text meds" data-r="4" data-c="13" type="text" value="" ></td>
+    </tr>
+    <!-- Row 5 -->
+    <tr>
+      <td><input class="cell number" data-r="5" data-c="0" type="number" value="5"  readonly></td>
+      <td><input class="cell text" data-r="5" data-c="1" type="text" value="" maxlength="5"></td>
+      <td><input class="cell text" data-r="5" data-c="2" type="text" value="" ></td>
+      <td><input class="cell number h" data-r="5" data-c="3" type="number" value="" step="0.01" min="0"></td>
+      <td><input class="cell number w" data-r="5" data-c="4" type="number" value="" step="0.1" min="0"></td>
+      <td><input class="cell number sys" data-r="5" data-c="5" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell number dia" data-r="5" data-c="6" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell text meaning" data-r="5" data-c="7" type="text" value=""  readonly></td>
+      <td><input class="cell number pulse" data-r="5" data-c="8" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell number temp" data-r="5" data-c="9" type="number" value="" step="0.1" min="0"></td>
+      <td><input class="cell number bmi" data-r="5" data-c="10" type="number" value="" step="0.1" min="0" readonly></td>
+      <td><input class="cell text bmiinterp" data-r="5" data-c="11" type="text" value=""  readonly></td>
+      <td><input class="cell number excess" data-r="5" data-c="12" type="number" value=""  readonly></td>
+      <td><input class="cell text meds" data-r="5" data-c="13" type="text" value="" ></td>
+    </tr>
+    <!-- Row 6 -->
+    <tr>
+      <td><input class="cell number" data-r="6" data-c="0" type="number" value="6"  readonly></td>
+      <td><input class="cell text" data-r="6" data-c="1" type="text" value="" maxlength="5"></td>
+      <td><input class="cell text" data-r="6" data-c="2" type="text" value="" ></td>
+      <td><input class="cell number h" data-r="6" data-c="3" type="number" value="" step="0.01" min="0"></td>
+      <td><input class="cell number w" data-r="6" data-c="4" type="number" value="" step="0.1" min="0"></td>
+      <td><input class="cell number sys" data-r="6" data-c="5" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell number dia" data-r="6" data-c="6" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell text meaning" data-r="6" data-c="7" type="text" value=""  readonly></td>
+      <td><input class="cell number pulse" data-r="6" data-c="8" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell number temp" data-r="6" data-c="9" type="number" value="" step="0.1" min="0"></td>
+      <td><input class="cell number bmi" data-r="6" data-c="10" type="number" value="" step="0.1" min="0" readonly></td>
+      <td><input class="cell text bmiinterp" data-r="6" data-c="11" type="text" value=""  readonly></td>
+      <td><input class="cell number excess" data-r="6" data-c="12" type="number" value=""  readonly></td>
+      <td><input class="cell text meds" data-r="6" data-c="13" type="text" value="" ></td>
+    </tr>
+    <!-- Row 7 -->
+    <tr>
+      <td><input class="cell number" data-r="7" data-c="0" type="number" value="7"  readonly></td>
+      <td><input class="cell text" data-r="7" data-c="1" type="text" value="" maxlength="5"></td>
+      <td><input class="cell text" data-r="7" data-c="2" type="text" value="" ></td>
+      <td><input class="cell number h" data-r="7" data-c="3" type="number" value="" step="0.01" min="0"></td>
+      <td><input class="cell number w" data-r="7" data-c="4" type="number" value="" step="0.1" min="0"></td>
+      <td><input class="cell number sys" data-r="7" data-c="5" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell number dia" data-r="7" data-c="6" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell text meaning" data-r="7" data-c="7" type="text" value=""  readonly></td>
+      <td><input class="cell number pulse" data-r="7" data-c="8" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell number temp" data-r="7" data-c="9" type="number" value="" step="0.1" min="0"></td>
+      <td><input class="cell number bmi" data-r="7" data-c="10" type="number" value="" step="0.1" min="0" readonly></td>
+      <td><input class="cell text bmiinterp" data-r="7" data-c="11" type="text" value=""  readonly></td>
+      <td><input class="cell number excess" data-r="7" data-c="12" type="number" value=""  readonly></td>
+      <td><input class="cell text meds" data-r="7" data-c="13" type="text" value="" ></td>
+    </tr>
+    <!-- Row 8 -->
+    <tr>
+      <td><input class="cell number" data-r="8" data-c="0" type="number" value="8"  readonly></td>
+      <td><input class="cell text" data-r="8" data-c="1" type="text" value="" maxlength="5"></td>
+      <td><input class="cell text" data-r="8" data-c="2" type="text" value="" ></td>
+      <td><input class="cell number h" data-r="8" data-c="3" type="number" value="" step="0.01" min="0"></td>
+      <td><input class="cell number w" data-r="8" data-c="4" type="number" value="" step="0.1" min="0"></td>
+      <td><input class="cell number sys" data-r="8" data-c="5" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell number dia" data-r="8" data-c="6" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell text meaning" data-r="8" data-c="7" type="text" value=""  readonly></td>
+      <td><input class="cell number pulse" data-r="8" data-c="8" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell number temp" data-r="8" data-c="9" type="number" value="" step="0.1" min="0"></td>
+      <td><input class="cell number bmi" data-r="8" data-c="10" type="number" value="" step="0.1" min="0" readonly></td>
+      <td><input class="cell text bmiinterp" data-r="8" data-c="11" type="text" value=""  readonly></td>
+      <td><input class="cell number excess" data-r="8" data-c="12" type="number" value=""  readonly></td>
+      <td><input class="cell text meds" data-r="8" data-c="13" type="text" value="" ></td>
+    </tr>
+    <!-- Row 9 -->
+    <tr>
+      <td><input class="cell number" data-r="9" data-c="0" type="number" value="9"  readonly></td>
+      <td><input class="cell text" data-r="9" data-c="1" type="text" value="" maxlength="5"></td>
+      <td><input class="cell text" data-r="9" data-c="2" type="text" value="" ></td>
+      <td><input class="cell number h" data-r="9" data-c="3" type="number" value="" step="0.01" min="0"></td>
+      <td><input class="cell number w" data-r="9" data-c="4" type="number" value="" step="0.1" min="0"></td>
+      <td><input class="cell number sys" data-r="9" data-c="5" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell number dia" data-r="9" data-c="6" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell text meaning" data-r="9" data-c="7" type="text" value=""  readonly></td>
+      <td><input class="cell number pulse" data-r="9" data-c="8" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell number temp" data-r="9" data-c="9" type="number" value="" step="0.1" min="0"></td>
+      <td><input class="cell number bmi" data-r="9" data-c="10" type="number" value="" step="0.1" min="0" readonly></td>
+      <td><input class="cell text bmiinterp" data-r="9" data-c="11" type="text" value=""  readonly></td>
+      <td><input class="cell number excess" data-r="9" data-c="12" type="number" value=""  readonly></td>
+      <td><input class="cell text meds" data-r="9" data-c="13" type="text" value="" ></td>
+    </tr>
+    <!-- Row 10 -->
+    <tr>
+      <td><input class="cell number" data-r="10" data-c="0" type="number" value="10"  readonly></td>
+      <td><input class="cell text" data-r="10" data-c="1" type="text" value="" maxlength="5"></td>
+      <td><input class="cell text" data-r="10" data-c="2" type="text" value="" ></td>
+      <td><input class="cell number h" data-r="10" data-c="3" type="number" value="" step="0.01" min="0"></td>
+      <td><input class="cell number w" data-r="10" data-c="4" type="number" value="" step="0.1" min="0"></td>
+      <td><input class="cell number sys" data-r="10" data-c="5" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell number dia" data-r="10" data-c="6" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell text meaning" data-r="10" data-c="7" type="text" value=""  readonly></td>
+      <td><input class="cell number pulse" data-r="10" data-c="8" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell number temp" data-r="10" data-c="9" type="number" value="" step="0.1" min="0"></td>
+      <td><input class="cell number bmi" data-r="10" data-c="10" type="number" value="" step="0.1" min="0" readonly></td>
+      <td><input class="cell text bmiinterp" data-r="10" data-c="11" type="text" value=""  readonly></td>
+      <td><input class="cell number excess" data-r="10" data-c="12" type="number" value=""  readonly></td>
+      <td><input class="cell text meds" data-r="10" data-c="13" type="text" value="" ></td>
+    </tr>
+    <!-- Row 11 -->
+    <tr>
+      <td><input class="cell number" data-r="11" data-c="0" type="number" value="11"  readonly></td>
+      <td><input class="cell text" data-r="11" data-c="1" type="text" value="" maxlength="5"></td>
+      <td><input class="cell text" data-r="11" data-c="2" type="text" value="" ></td>
+      <td><input class="cell number h" data-r="11" data-c="3" type="number" value="" step="0.01" min="0"></td>
+      <td><input class="cell number w" data-r="11" data-c="4" type="number" value="" step="0.1" min="0"></td>
+      <td><input class="cell number sys" data-r="11" data-c="5" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell number dia" data-r="11" data-c="6" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell text meaning" data-r="11" data-c="7" type="text" value=""  readonly></td>
+      <td><input class="cell number pulse" data-r="11" data-c="8" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell number temp" data-r="11" data-c="9" type="number" value="" step="0.1" min="0"></td>
+      <td><input class="cell number bmi" data-r="11" data-c="10" type="number" value="" step="0.1" min="0" readonly></td>
+      <td><input class="cell text bmiinterp" data-r="11" data-c="11" type="text" value=""  readonly></td>
+      <td><input class="cell number excess" data-r="11" data-c="12" type="number" value=""  readonly></td>
+      <td><input class="cell text meds" data-r="11" data-c="13" type="text" value="" ></td>
+    </tr>
+    <!-- Row 12 -->
+    <tr>
+      <td><input class="cell number" data-r="12" data-c="0" type="number" value="12"  readonly></td>
+      <td><input class="cell text" data-r="12" data-c="1" type="text" value="" maxlength="5"></td>
+      <td><input class="cell text" data-r="12" data-c="2" type="text" value="" ></td>
+      <td><input class="cell number h" data-r="12" data-c="3" type="number" value="" step="0.01" min="0"></td>
+      <td><input class="cell number w" data-r="12" data-c="4" type="number" value="" step="0.1" min="0"></td>
+      <td><input class="cell number sys" data-r="12" data-c="5" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell number dia" data-r="12" data-c="6" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell text meaning" data-r="12" data-c="7" type="text" value=""  readonly></td>
+      <td><input class="cell number pulse" data-r="12" data-c="8" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell number temp" data-r="12" data-c="9" type="number" value="" step="0.1" min="0"></td>
+      <td><input class="cell number bmi" data-r="12" data-c="10" type="number" value="" step="0.1" min="0" readonly></td>
+      <td><input class="cell text bmiinterp" data-r="12" data-c="11" type="text" value=""  readonly></td>
+      <td><input class="cell number excess" data-r="12" data-c="12" type="number" value=""  readonly></td>
+      <td><input class="cell text meds" data-r="12" data-c="13" type="text" value="" ></td>
+    </tr>
+    <!-- Row 13 -->
+    <tr>
+      <td><input class="cell number" data-r="13" data-c="0" type="number" value="13"  readonly></td>
+      <td><input class="cell text" data-r="13" data-c="1" type="text" value="" maxlength="5"></td>
+      <td><input class="cell text" data-r="13" data-c="2" type="text" value="" ></td>
+      <td><input class="cell number h" data-r="13" data-c="3" type="number" value="" step="0.01" min="0"></td>
+      <td><input class="cell number w" data-r="13" data-c="4" type="number" value="" step="0.1" min="0"></td>
+      <td><input class="cell number sys" data-r="13" data-c="5" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell number dia" data-r="13" data-c="6" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell text meaning" data-r="13" data-c="7" type="text" value=""  readonly></td>
+      <td><input class="cell number pulse" data-r="13" data-c="8" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell number temp" data-r="13" data-c="9" type="number" value="" step="0.1" min="0"></td>
+      <td><input class="cell number bmi" data-r="13" data-c="10" type="number" value="" step="0.1" min="0" readonly></td>
+      <td><input class="cell text bmiinterp" data-r="13" data-c="11" type="text" value=""  readonly></td>
+      <td><input class="cell number excess" data-r="13" data-c="12" type="number" value=""  readonly></td>
+      <td><input class="cell text meds" data-r="13" data-c="13" type="text" value="" ></td>
+    </tr>
+    <!-- Row 14 -->
+    <tr>
+      <td><input class="cell number" data-r="14" data-c="0" type="number" value="14"  readonly></td>
+      <td><input class="cell text" data-r="14" data-c="1" type="text" value="" maxlength="5"></td>
+      <td><input class="cell text" data-r="14" data-c="2" type="text" value="" ></td>
+      <td><input class="cell number h" data-r="14" data-c="3" type="number" value="" step="0.01" min="0"></td>
+      <td><input class="cell number w" data-r="14" data-c="4" type="number" value="" step="0.1" min="0"></td>
+      <td><input class="cell number sys" data-r="14" data-c="5" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell number dia" data-r="14" data-c="6" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell text meaning" data-r="14" data-c="7" type="text" value=""  readonly></td>
+      <td><input class="cell number pulse" data-r="14" data-c="8" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell number temp" data-r="14" data-c="9" type="number" value="" step="0.1" min="0"></td>
+      <td><input class="cell number bmi" data-r="14" data-c="10" type="number" value="" step="0.1" min="0" readonly></td>
+      <td><input class="cell text bmiinterp" data-r="14" data-c="11" type="text" value=""  readonly></td>
+      <td><input class="cell number excess" data-r="14" data-c="12" type="number" value=""  readonly></td>
+      <td><input class="cell text meds" data-r="14" data-c="13" type="text" value="" ></td>
+    </tr>
+    <!-- Row 15 -->
+    <tr>
+      <td><input class="cell number" data-r="15" data-c="0" type="number" value="15"  readonly></td>
+      <td><input class="cell text" data-r="15" data-c="1" type="text" value="" maxlength="5"></td>
+      <td><input class="cell text" data-r="15" data-c="2" type="text" value="" ></td>
+      <td><input class="cell number h" data-r="15" data-c="3" type="number" value="" step="0.01" min="0"></td>
+      <td><input class="cell number w" data-r="15" data-c="4" type="number" value="" step="0.1" min="0"></td>
+      <td><input class="cell number sys" data-r="15" data-c="5" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell number dia" data-r="15" data-c="6" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell text meaning" data-r="15" data-c="7" type="text" value=""  readonly></td>
+      <td><input class="cell number pulse" data-r="15" data-c="8" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell number temp" data-r="15" data-c="9" type="number" value="" step="0.1" min="0"></td>
+      <td><input class="cell number bmi" data-r="15" data-c="10" type="number" value="" step="0.1" min="0" readonly></td>
+      <td><input class="cell text bmiinterp" data-r="15" data-c="11" type="text" value=""  readonly></td>
+      <td><input class="cell number excess" data-r="15" data-c="12" type="number" value=""  readonly></td>
+      <td><input class="cell text meds" data-r="15" data-c="13" type="text" value="" ></td>
+    </tr>
+    <!-- Row 16 -->
+    <tr>
+      <td><input class="cell number" data-r="16" data-c="0" type="number" value="16"  readonly></td>
+      <td><input class="cell text" data-r="16" data-c="1" type="text" value="" maxlength="5"></td>
+      <td><input class="cell text" data-r="16" data-c="2" type="text" value="" ></td>
+      <td><input class="cell number h" data-r="16" data-c="3" type="number" value="" step="0.01" min="0"></td>
+      <td><input class="cell number w" data-r="16" data-c="4" type="number" value="" step="0.1" min="0"></td>
+      <td><input class="cell number sys" data-r="16" data-c="5" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell number dia" data-r="16" data-c="6" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell text meaning" data-r="16" data-c="7" type="text" value=""  readonly></td>
+      <td><input class="cell number pulse" data-r="16" data-c="8" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell number temp" data-r="16" data-c="9" type="number" value="" step="0.1" min="0"></td>
+      <td><input class="cell number bmi" data-r="16" data-c="10" type="number" value="" step="0.1" min="0" readonly></td>
+      <td><input class="cell text bmiinterp" data-r="16" data-c="11" type="text" value=""  readonly></td>
+      <td><input class="cell number excess" data-r="16" data-c="12" type="number" value=""  readonly></td>
+      <td><input class="cell text meds" data-r="16" data-c="13" type="text" value="" ></td>
+    </tr>
+    <!-- Row 17 -->
+    <tr>
+      <td><input class="cell number" data-r="17" data-c="0" type="number" value="17"  readonly></td>
+      <td><input class="cell text" data-r="17" data-c="1" type="text" value="" maxlength="5"></td>
+      <td><input class="cell text" data-r="17" data-c="2" type="text" value="" ></td>
+      <td><input class="cell number h" data-r="17" data-c="3" type="number" value="" step="0.01" min="0"></td>
+      <td><input class="cell number w" data-r="17" data-c="4" type="number" value="" step="0.1" min="0"></td>
+      <td><input class="cell number sys" data-r="17" data-c="5" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell number dia" data-r="17" data-c="6" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell text meaning" data-r="17" data-c="7" type="text" value=""  readonly></td>
+      <td><input class="cell number pulse" data-r="17" data-c="8" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell number temp" data-r="17" data-c="9" type="number" value="" step="0.1" min="0"></td>
+      <td><input class="cell number bmi" data-r="17" data-c="10" type="number" value="" step="0.1" min="0" readonly></td>
+      <td><input class="cell text bmiinterp" data-r="17" data-c="11" type="text" value=""  readonly></td>
+      <td><input class="cell number excess" data-r="17" data-c="12" type="number" value=""  readonly></td>
+      <td><input class="cell text meds" data-r="17" data-c="13" type="text" value="" ></td>
+    </tr>
+    <!-- Row 18 -->
+    <tr>
+      <td><input class="cell number" data-r="18" data-c="0" type="number" value="18"  readonly></td>
+      <td><input class="cell text" data-r="18" data-c="1" type="text" value="" maxlength="5"></td>
+      <td><input class="cell text" data-r="18" data-c="2" type="text" value="" ></td>
+      <td><input class="cell number h" data-r="18" data-c="3" type="number" value="" step="0.01" min="0"></td>
+      <td><input class="cell number w" data-r="18" data-c="4" type="number" value="" step="0.1" min="0"></td>
+      <td><input class="cell number sys" data-r="18" data-c="5" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell number dia" data-r="18" data-c="6" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell text meaning" data-r="18" data-c="7" type="text" value=""  readonly></td>
+      <td><input class="cell number pulse" data-r="18" data-c="8" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell number temp" data-r="18" data-c="9" type="number" value="" step="0.1" min="0"></td>
+      <td><input class="cell number bmi" data-r="18" data-c="10" type="number" value="" step="0.1" min="0" readonly></td>
+      <td><input class="cell text bmiinterp" data-r="18" data-c="11" type="text" value=""  readonly></td>
+      <td><input class="cell number excess" data-r="18" data-c="12" type="number" value=""  readonly></td>
+      <td><input class="cell text meds" data-r="18" data-c="13" type="text" value="" ></td>
+    </tr>
+    <!-- Row 19 -->
+    <tr>
+      <td><input class="cell number" data-r="19" data-c="0" type="number" value="19"  readonly></td>
+      <td><input class="cell text" data-r="19" data-c="1" type="text" value="" maxlength="5"></td>
+      <td><input class="cell text" data-r="19" data-c="2" type="text" value="" ></td>
+      <td><input class="cell number h" data-r="19" data-c="3" type="number" value="" step="0.01" min="0"></td>
+      <td><input class="cell number w" data-r="19" data-c="4" type="number" value="" step="0.1" min="0"></td>
+      <td><input class="cell number sys" data-r="19" data-c="5" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell number dia" data-r="19" data-c="6" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell text meaning" data-r="19" data-c="7" type="text" value=""  readonly></td>
+      <td><input class="cell number pulse" data-r="19" data-c="8" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell number temp" data-r="19" data-c="9" type="number" value="" step="0.1" min="0"></td>
+      <td><input class="cell number bmi" data-r="19" data-c="10" type="number" value="" step="0.1" min="0" readonly></td>
+      <td><input class="cell text bmiinterp" data-r="19" data-c="11" type="text" value=""  readonly></td>
+      <td><input class="cell number excess" data-r="19" data-c="12" type="number" value=""  readonly></td>
+      <td><input class="cell text meds" data-r="19" data-c="13" type="text" value="" ></td>
+    </tr>
+    <!-- Row 20 -->
+    <tr>
+      <td><input class="cell number" data-r="20" data-c="0" type="number" value="20"  readonly></td>
+      <td><input class="cell text" data-r="20" data-c="1" type="text" value="" maxlength="5"></td>
+      <td><input class="cell text" data-r="20" data-c="2" type="text" value="" ></td>
+      <td><input class="cell number h" data-r="20" data-c="3" type="number" value="" step="0.01" min="0"></td>
+      <td><input class="cell number w" data-r="20" data-c="4" type="number" value="" step="0.1" min="0"></td>
+      <td><input class="cell number sys" data-r="20" data-c="5" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell number dia" data-r="20" data-c="6" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell text meaning" data-r="20" data-c="7" type="text" value=""  readonly></td>
+      <td><input class="cell number pulse" data-r="20" data-c="8" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell number temp" data-r="20" data-c="9" type="number" value="" step="0.1" min="0"></td>
+      <td><input class="cell number bmi" data-r="20" data-c="10" type="number" value="" step="0.1" min="0" readonly></td>
+      <td><input class="cell text bmiinterp" data-r="20" data-c="11" type="text" value=""  readonly></td>
+      <td><input class="cell number excess" data-r="20" data-c="12" type="number" value=""  readonly></td>
+      <td><input class="cell text meds" data-r="20" data-c="13" type="text" value="" ></td>
+    </tr>
+    <!-- Row 21 -->
+    <tr>
+      <td><input class="cell number" data-r="21" data-c="0" type="number" value="21"  readonly></td>
+      <td><input class="cell text" data-r="21" data-c="1" type="text" value="" maxlength="5"></td>
+      <td><input class="cell text" data-r="21" data-c="2" type="text" value="" ></td>
+      <td><input class="cell number h" data-r="21" data-c="3" type="number" value="" step="0.01" min="0"></td>
+      <td><input class="cell number w" data-r="21" data-c="4" type="number" value="" step="0.1" min="0"></td>
+      <td><input class="cell number sys" data-r="21" data-c="5" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell number dia" data-r="21" data-c="6" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell text meaning" data-r="21" data-c="7" type="text" value=""  readonly></td>
+      <td><input class="cell number pulse" data-r="21" data-c="8" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell number temp" data-r="21" data-c="9" type="number" value="" step="0.1" min="0"></td>
+      <td><input class="cell number bmi" data-r="21" data-c="10" type="number" value="" step="0.1" min="0" readonly></td>
+      <td><input class="cell text bmiinterp" data-r="21" data-c="11" type="text" value=""  readonly></td>
+      <td><input class="cell number excess" data-r="21" data-c="12" type="number" value=""  readonly></td>
+      <td><input class="cell text meds" data-r="21" data-c="13" type="text" value="" ></td>
+    </tr>
+    <!-- Row 22 -->
+    <tr>
+      <td><input class="cell number" data-r="22" data-c="0" type="number" value="22"  readonly></td>
+      <td><input class="cell text" data-r="22" data-c="1" type="text" value="" maxlength="5"></td>
+      <td><input class="cell text" data-r="22" data-c="2" type="text" value="" ></td>
+      <td><input class="cell number h" data-r="22" data-c="3" type="number" value="" step="0.01" min="0"></td>
+      <td><input class="cell number w" data-r="22" data-c="4" type="number" value="" step="0.1" min="0"></td>
+      <td><input class="cell number sys" data-r="22" data-c="5" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell number dia" data-r="22" data-c="6" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell text meaning" data-r="22" data-c="7" type="text" value=""  readonly></td>
+      <td><input class="cell number pulse" data-r="22" data-c="8" type="number" value="" step="1" min="0"></td>
+      <td><input class="cell number temp" data-r="22" data-c="9" type="number" value="" step="0.1" min="0"></td>
+      <td><input class="cell number bmi" data-r="22" data-c="10" type="number" value="" step="0.1" min="0" readonly></td>
+      <td><input class="cell text bmiinterp" data-r="22" data-c="11" type="text" value=""  readonly></td>
+      <td><input class="cell number excess" data-r="22" data-c="12" type="number" value=""  readonly></td>
+      <td><input class="cell text meds" data-r="22" data-c="13" type="text" value="" ></td>
+    </tr>
+  </tbody>
+</table>
+<footer>
+  <span id="genStamp"></span>
+</footer>
+<footer>
+  <span>Created by John Alfred Trani | For custom solutions contact: mmjattuclm@gmail.com</span>
+</footer>
+</div>        <!--WRAPPER-->
+
+<div id="controls">
+<button id="exportBtn">Export XML & Email</button>
+<button id="savePdfBtn" class="btn">Save as PDF</button>
+<button id="printBtn" class="btn">Print Report</button>
+</div>
+
+
+<script src="js/html2pdf.bundle.min.js"></script>
+
+<script>
+(function () {
+  // Save as PDF
+(function () {
+
+  /* ----------  SAVE AS PDF  ---------- */
+  document.getElementById('savePdfBtn').addEventListener('click', () => {
+    const vessel = document.getElementById('vessel').value.trim();
+    if (!vessel) return alert('Enter vessel name');
+
+    /* add export style */
+    document.body.classList.add('export-mode');
+
+    const now   = new Date();
+    const month = now.toLocaleString(undefined,{month:'long'});
+    const year  = now.getFullYear();
+    const file  = `CHM_of_${vessel.replace(/[^A-Za-z0-9]/g,'-')}_${month}_${year}.pdf`;
+
+    const opt = {
+      margin:0.2,
+      filename:file,
+      image:{type:'jpeg',quality:0.98},
+      html2canvas:{scale:2,useCORS:true},
+      jsPDF:{unit:'in',format:'a4',orientation:'landscape'},
+      pagebreak:{mode:['avoid-all','css','legacy']}
+    };
+
+    html2pdf().set(opt).from(document.body).save().then(()=>{
+      document.body.classList.remove('export-mode');
+    });
+  });
+
+  /* ----------  PRINT  ---------- */
+  document.getElementById('printBtn').addEventListener('click', () => {
+    document.body.classList.add('export-mode');
+    window.print();
+    /* remove after print dialog closes */
+    setTimeout(()=>document.body.classList.remove('export-mode'),500);
+  });
+
+})();
+
+  // Print
+  document.getElementById('printBtn').addEventListener('click', () => {
+    document.body.classList.add('export-mode');
+    window.print();
+    setTimeout(() => {
+      document.body.classList.remove('export-mode');
+    }, 500);
+  });
+})();
+
+
+(function(){
+  const start=new Date();
+  document.getElementById('timestamp').textContent="Opened: "+start.toLocaleString(undefined,{dateStyle:'medium',timeStyle:'short'});
+  document.getElementById('genStamp').textContent="Generated "+start.toISOString().slice(0,19).replace('T',' ');
+  const table=document.getElementById('reportTable');
+
+  table.addEventListener('input',e=>calcRow(e.target.closest('tr')));
+
+  // START OF MODIFIED CALCROW FUNCTION
+  function calcRow(row){
+    if(!row) return;
+    const h=parseFloat(row.querySelector('.h')?.value);
+    const w=parseFloat(row.querySelector('.w')?.value);
+    const sys=parseFloat(row.querySelector('.sys')?.value);
+    const bmiElem=row.querySelector('.bmi');
+    const interp=row.querySelector('.bmiinterp');
+    const excess=row.querySelector('.excess');
+    const bp=row.querySelector('.meaning');
+
+    // Clear previous status classes to ensure accurate recoloring
+    [interp,bp].forEach(el=>{if(el) el.className=el.className.replace(/\b(status|bp)-\w+/g,'').trim();});
+
+    if(h&&w){
+      const bmi = w / (h * h);
+      // Round BMI to two decimal places for display and consistent comparison
+      const roundedBmi = parseFloat(bmi.toFixed(2)); 
+      bmiElem.value = roundedBmi;
+
+      // Updated BMI classification logic based on user's request:
+      // 24.90-24.94 = normal, 24.95-above = overweight
+      let status;
+      if (roundedBmi < 18.5) {
+        status = 'underweight';
+      } else if (roundedBmi <= 24.94) { // Normal up to 24.94
+        status = 'normal';
+      } else if (roundedBmi <= 29.99) { // Overweight from 24.95 to 29.99
+        status = 'overweight';
+      } else { // Obese from 30.00 and above
+        status = 'obese';
+      }
+      
+      interp.value = status.charAt(0).toUpperCase() + status.slice(1);
+      interp.parentElement.classList.add('status-' + status);
+
+      // Excess weight calculation: Based on the new upper normal limit (24.94)
+      const upperNormalBmi = 24.94; // Consistent with the new "normal" upper bound
+      excess.value = (roundedBmi > upperNormalBmi) ? (w - (upperNormalBmi * (h * h))).toFixed(1) : '0';
+      
+    }else{
+        // Clear BMI related fields if height or weight are not valid
+        bmiElem.value = '';
+        interp.value = '';
+        excess.value = '';
+    }
+
+    // Blood Pressure interpretation (no changes here as it was already correct)
+    if(!isNaN(sys)){
+       let level=sys<120?'normal':sys<=129?'elevated':sys<=139?'high1':'high2';
+       const labels={normal:'Normal',elevated:'Elevated',high1:'High BP 1',high2:'High BP 2'};
+       bp.value=labels[level];
+       bp.parentElement.classList.add('bp-'+level);
+    }else bp.value='';
+  }
+  // END OF MODIFIED CALCROW FUNCTION
+
+  table.addEventListener('paste',evt=>{
+    const act=document.activeElement;
+    if(!act.classList.contains('cell')) return;
+    evt.preventDefault();
+    const r0=+act.dataset.r,c0=+act.dataset.c;
+    const clip=(evt.clipboardData||window.clipboardData).getData('text');
+    clip.split(/\r?\n/).forEach((line,ri)=>{
+      if(!line.trim()) return;
+      line.split(/\t/).forEach((val,ci)=>{
+        const tgt=table.querySelector(`input[data-r="${r0+ri}"][data-c="${c0+ci}"]`);
+        if(tgt&&!tgt.readOnly){tgt.value=val.trim();tgt.dispatchEvent(new Event('input',{bubbles:true}));}
+      });
+    });
+  });
+
+  document.getElementById('exportBtn').addEventListener('click',()=>{
+    const vessel=document.getElementById('vessel').value.trim();
+    if(!vessel) return alert('Enter vessel name');
+    const safe=vessel.replace(/[^A-Za-z0-9-]/g,'-');
+    const now=new Date(),month=now.toLocaleString(undefined,{month:'long'}),year=now.getFullYear();
+    const fname=`CHM of ${safe}_${month}_${year}.xml`;
+    const rows=[...table.querySelectorAll('tbody tr')].map(tr=>{
+      const c=tr.querySelectorAll('input.cell');
+      return{No:c[0].value,Rank:c[1].value,Name:c[2].value,Height:c[3].value,Weight:c[4].value,
+      Systolic:c[5].value,Diastolic:c[6].value,Meaning:c[7].value,Pulse:c[8].value,Temp:c[9].value,
+      BMI:c[10].value,BMIInterpretation:c[11].value,ExcessWeight:c[12].value,Medication:c[13].value};
+    });
+    let xml=`<?xml version="1.0" encoding="UTF-8"?><CrewReport vessel="${escapeXml(vessel)}" date="${month} ${year}">`;
+    rows.forEach(r=>{xml+='<Crew>';for(const k in r)xml+=`<${k}>${escapeXml(r[k])}</${k}>`;});xml+='</Crew></CrewReport>';
+    const blob=new Blob([xml],{type:'application/xml'});
+    download(blob,fname);
+  });
+
+  function download(blob,name){if(navigator.msSaveOrOpenBlob) return navigator.msSaveOrOpenBlob(blob,name);
+     const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();document.body.removeChild(a);}
+  function escapeXml(s){return String(s||'').replace(/[<>&'"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&apos;'}[c]));}
+})();
+</script>
+
+<script>
+(function(){
+  function classifyVitals(row){
+    // Temperature classification
+    const tempInput = row.querySelector('.temp');
+    const tempCell  = tempInput.parentElement;
+    const t = parseFloat(tempInput.value);
+    ['temp-hypothermia','temp-cold','temp-normal','temp-lowfever','temp-fever','temp-hyperpyrexia'].forEach(c=>tempCell.classList.remove(c));
+    tempCell.classList.remove('tooltip');
+    tempCell.removeAttribute('data-tip');
+    if(!isNaN(t)){
+      let cat, tip;
+      if(t < 35){
+        cat = 'hypothermia';
+        tip = 'Hypothermia (< 35 °C): medical emergency with intense shivering and risk of arrhythmia.';
+      } else if (t < 36){
+        cat = 'cold';
+        tip = 'Cold (35 °C – 36 °C): mild discomfort with possible minor shivering.';
+      } else if (t <= 37.2){
+        cat = 'normal';
+        tip = 'Normal (36.1 °C – 37.2 °C): healthy temperature range.';
+      } else if (t <= 38){
+        cat = 'lowfever';
+        tip = 'Low-grade fever (37.3 °C – 38 °C): possible infection onset.';
+      } else if (t <= 40){
+        cat = 'fever';
+        tip = 'Fever (38 °C – 40 °C): indicative of infection or inflammation.';
+      } else {
+        cat = 'hyperpyrexia';
+        tip = 'Hyperpyrexia (> 40 °C): life-threatening emergency.';
+      }
+      tempCell.classList.add('temp-' + cat, 'tooltip');
+      tempCell.setAttribute('data-tip', tip);
+    }
+
+    // Pulse classification
+    const pulseInput = row.querySelector('.pulse');
+    const pulseCell  = pulseInput.parentElement;
+    const p = parseInt(pulseInput.value);
+    ['pulse-bradycardia','pulse-normal','pulse-tachycardia'].forEach(c=>pulseCell.classList.remove(c));
+    pulseCell.classList.remove('tooltip');
+    pulseCell.removeAttribute('data-tip');
+    if(!isNaN(p)){
+      let cat, tip;
+      if(p < 60){
+        cat = 'bradycardia';
+        tip = 'Bradycardia (< 60 bpm): may indicate high fitness or conduction issues.';
+      } else if (p <= 100){
+        cat = 'normal';
+        tip = 'Normal (60 – 100 bpm): healthy resting heart rate for adults.';
+      } else {
+        cat = 'tachycardia';
+        tip = 'Tachycardia (> 100 bpm): possible stress, fever, or arrhythmia.';
+      }
+      pulseCell.classList.add('pulse-' + cat, 'tooltip');
+      pulseCell.setAttribute('data-tip', tip);
+    }
+  }
+
+  const table = document.getElementById('reportTable');
+  table.addEventListener('input', e => {
+    const row = e.target.closest('tr');
+    if(row) classifyVitals(row);
+  });
+})();
+(function () {
+  const wrapper = document.getElementById('reportPage');
+
+  /* ---------- SAVE PDF ---------- */
+  savePdfBtn.addEventListener('click', () => {
+    const vessel = vesselInput.value.trim();
+    if (!vessel) return alert('Enter vessel name');
+    document.body.classList.add('export-mode');
+
+    const now = new Date();
+    const filename = `CHM_of_${vessel.replace(/[^A-Za-z0-9]/g,'-')}_${now.toLocaleString(undefined,{month:'long'})}_${now.getFullYear()}.pdf`;
+
+    html2pdf()
+      .set({
+        margin:0,
+        filename,
+        image:{type:'jpeg',quality:0.98},
+        html2canvas:{scale:2,useCORS:true},
+        jsPDF:{unit:'in',format:'a4',orientation:'landscape'},
+        pagebreak:{mode:['avoid-all','css','legacy']}
+      })
+      .from(wrapper)   // <-- use the wrapper, not document.body
+      .save()
+      .then(()=>document.body.classList.remove('export-mode'));
+  });
+
+  /* ---------- PRINT ---------- */
+  printBtn.addEventListener('click', () => {
+    document.body.classList.add('export-mode');
+    window.print();
+    setTimeout(()=>document.body.classList.remove('export-mode'),500);
+  });
+})();
+
+</script>
+
+</body>
+</html>
